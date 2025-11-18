@@ -1,7 +1,5 @@
-﻿// See https://aka.ms/new-console-template for more information
-using System.Text;
+﻿using System.Text;
 
-Console.WriteLine("Hello, World!");
 
 // Validate arguments
 if (args.Length < 2)
@@ -49,4 +47,4 @@ if (!string.IsNullOrWhiteSpace(outputDir) && !Directory.Exists(outputDir))
 
 // Write to output file
 File.WriteAllText(outputFilePath, sb.ToString());
-Console.WriteLine($"✔ Combined {sqlFiles.Count} files into: {outputFilePath}");
+Console.WriteLine($"Success! Combined {sqlFiles.Count} files into: {outputFilePath}");
