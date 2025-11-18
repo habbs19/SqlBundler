@@ -131,16 +131,58 @@ class SqlBundler
     // -------------------------------------------------------
     private static bool IsUnderIgnoredFolder(string filePath, List<string> ignoredFolders)
     {
-        if (!ignoredFolders.Any())
+        if (ignoredFolders == null || ignoredFolders.Count == 0)
             return false;
 
-        foreach (var folder in ignoredFolders)
+        // Full directory of the file, normalized
+        var fileDirFull = Path.GetDirectoryName(Path.GetFullPath(filePath));
+        if (string.IsNullOrEmpty(fileDirFull))
+            return false;
+
+        foreach (var raw in ignoredFolders)
         {
-            if (filePath.Contains(Path.DirectorySeparatorChar + folder + Path.DirectorySeparatorChar,
-                                  StringComparison.OrdinalIgnoreCase))
-                return true;
+            if (string.IsNullOrWhiteSpace(raw))
+                continue;
+
+            var trimmed = raw.Trim().Trim(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+            // If it looks like a path (has slashes or drive letter), treat it as a path prefix
+            bool looksLikePath =
+                trimmed.Contains(Path.DirectorySeparatorChar) ||
+                trimmed.Contains(Path.AltDirectorySeparatorChar) ||
+                trimmed.Contains(':');
+
+            if (looksLikePath)
+            {
+                string ignoredFull;
+                try
+                {
+                    ignoredFull = Path.GetFullPath(trimmed);
+                }
+                catch
+                {
+                    // If it's not a valid path, skip this entry
+                    continue;
+                }
+
+                // If the file's directory is under this ignored path, skip it
+                if (fileDirFull.StartsWith(ignoredFull, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+            else
+            {
+                // Treat as simple folder name (segment-based match)
+                var segments = fileDirFull.Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries);
+                foreach (var segment in segments)
+                {
+                    if (string.Equals(segment, trimmed, StringComparison.OrdinalIgnoreCase))
+                        return true;
+                }
+            }
         }
 
         return false;
     }
+
+
 }
