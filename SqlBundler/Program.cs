@@ -10,12 +10,15 @@ class SqlBundler
     {
         if (args.Length < 2)
         {
-            Console.WriteLine("Usage: SqlBundler <inputDirectory> <outputFile.sql> [--ignore=folder1,folder2]");
+            Console.WriteLine("Usage: SqlBundler <inputDirectory> <outputFile.sql> [--ignore=f1,f2] [--flat]");
             return 1;
         }
 
         var inputDirectory = args[0];
         var outputFilePath = args[1];
+
+        // Flags
+        bool flatMode = args.Any(a => a.Equals("--flat", StringComparison.OrdinalIgnoreCase));
         var ignoredFolders = ParseIgnoredFolders(args);
 
         if (!Directory.Exists(inputDirectory))
@@ -24,14 +27,18 @@ class SqlBundler
             return 1;
         }
 
-        var sqlFiles = Directory.GetFiles(inputDirectory, "*.sql", SearchOption.AllDirectories)
-                                .Where(f => !IsUnderIgnoredFolder(f, ignoredFolders))
-                                .OrderBy(f => f)
-                                .ToList();
+        // Retrieve SQL files
+        List<string> sqlFiles = flatMode
+            ? Directory.GetFiles(inputDirectory, "*.sql", SearchOption.TopDirectoryOnly).ToList()
+            : Directory.GetFiles(inputDirectory, "*.sql", SearchOption.AllDirectories)
+                       .Where(f => !IsUnderIgnoredFolder(f, ignoredFolders))
+                       .ToList();
+
+        sqlFiles = sqlFiles.OrderBy(f => f).ToList();
 
         if (!sqlFiles.Any())
         {
-            Console.WriteLine("No .sql files found (after applying ignore filters).");
+            Console.WriteLine("No .sql files found (after applying flags).");
             return 1;
         }
 
@@ -73,6 +80,9 @@ class SqlBundler
             if (ignoredFolders.Any())
                 Console.WriteLine($"Ignored folders: {string.Join(", ", ignoredFolders)}");
 
+            if (flatMode)
+                Console.WriteLine("Mode: FLAT (top-level folder only)");
+
             return 0;
         }
         catch (Exception ex)
@@ -82,9 +92,9 @@ class SqlBundler
         }
     }
 
-    // --------------------------------------------
+    // -------------------------------------------------------
     // Progress Bar
-    // --------------------------------------------
+    // -------------------------------------------------------
     private static void DrawProgressBar(int progress, int total, int barSize = 40)
     {
         double percent = (double)progress / total;
@@ -97,9 +107,9 @@ class SqlBundler
         Console.Write($"] {percent:0.0%}");
     }
 
-    // --------------------------------------------
-    // Parse ignore list
-    // --------------------------------------------
+    // -------------------------------------------------------
+    // Parse ignore argument
+    // -------------------------------------------------------
     private static List<string> ParseIgnoredFolders(string[] args)
     {
         var ignored = new List<string>();
@@ -110,16 +120,15 @@ class SqlBundler
 
         var folders = ignoreArg.Substring("--ignore=".Length)
                                .Split(',', StringSplitOptions.RemoveEmptyEntries)
-                               .Select(f => f.Trim())
-                               .Where(f => !string.IsNullOrWhiteSpace(f));
+                               .Select(f => f.Trim());
 
         ignored.AddRange(folders);
         return ignored;
     }
 
-    // --------------------------------------------
-    // Check if file path contains an ignored folder
-    // --------------------------------------------
+    // -------------------------------------------------------
+    // Skip ignored folders
+    // -------------------------------------------------------
     private static bool IsUnderIgnoredFolder(string filePath, List<string> ignoredFolders)
     {
         if (!ignoredFolders.Any())
